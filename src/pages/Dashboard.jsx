@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useStore } from '../context/StoreContext'
 import {
-  computeStreak, getWeekSessions, getWeekTrainedDays, avgStartTime,
+  computeStreak, getWeekSessions, getWeekTrainedDays, avgStartTime, streakSessionCount,
 } from '../lib/stats'
 import { PERF_LABELS } from '../lib/utils'
 
@@ -96,6 +96,7 @@ export default function Dashboard({ navigate }) {
   const [showSettings, setShowSettings] = useState(false)
 
   const streak = computeStreak(sessions, settings.weeklyGoal)
+  const streakSeances = streakSessionCount(sessions, streak.current)
   const weekCount = getWeekSessions(sessions)
   const trainedDays = getWeekTrainedDays(sessions)
   const avgTime = avgStartTime(sessions)
@@ -148,12 +149,17 @@ export default function Dashboard({ navigate }) {
         <div className="tag">Streak</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', margin: '0.25rem 0 0.125rem' }}>
           <span className="num-hero num-pop" style={{ position: 'relative', zIndex: 1 }}>
-            <CountUp target={streak.current} />
+            <CountUp target={streak.current > 0 ? streakSeances : 0} />
           </span>
           <span style={{ fontWeight: 700, fontSize: '1.125rem', position: 'relative', zIndex: 1 }}>
-            {streak.current === 1 ? 'semaine' : 'semaines'}
+            {streakSeances === 1 ? 'séance' : 'séances'}
           </span>
         </div>
+        {streak.current > 0 && (
+          <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#666', marginBottom: '0.125rem' }}>
+            {streak.current} {streak.current === 1 ? 'semaine' : 'semaines'} de régularité
+          </div>
+        )}
         <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: '#444', marginBottom: '0.25rem' }}>
           {streakMessage}
         </div>

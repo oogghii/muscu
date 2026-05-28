@@ -69,6 +69,15 @@ export function computeStreak(sessions, weeklyGoal = 4) {
   return { current, best }
 }
 
+// ── Sessions count during current streak ─────────────────────────────────────
+
+export function streakSessionCount(sessions, streakWeeks) {
+  if (!streakWeeks) return 0
+  const start = getMondayOf(new Date())
+  start.setDate(start.getDate() - (streakWeeks - 1) * 7)
+  return sessions.filter(s => new Date(s.startTime) >= start).length
+}
+
 // ── Week sessions ─────────────────────────────────────────────────────────────
 
 export function getWeekSessions(sessions) {
