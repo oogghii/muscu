@@ -149,10 +149,10 @@ export default function Dashboard({ navigate }) {
         <div className="tag">Streak</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', margin: '0.25rem 0 0.125rem' }}>
           <span className="num-hero num-pop" style={{ position: 'relative', zIndex: 1 }}>
-            <CountUp target={streak.current > 0 ? streakSeances : 0} />
+            <CountUp target={streak.current > 0 ? streakSeances : weekCount} />
           </span>
           <span style={{ fontWeight: 700, fontSize: '1.125rem', position: 'relative', zIndex: 1 }}>
-            {streakSeances === 1 ? 'séance' : 'séances'}
+            {(streak.current > 0 ? streakSeances : weekCount) === 1 ? 'séance' : 'séances'}
           </span>
         </div>
         {streak.current > 0 && (
