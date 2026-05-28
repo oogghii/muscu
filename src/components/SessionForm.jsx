@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import EmojiPicker from './EmojiPicker'
+import { PERF_LABELS } from '../lib/utils'
 
 const HUMEUR_TAGS = [
   'Motivé', 'Confiant', 'En mode', 'Euphorique', 'Heureux', 'Calme',
@@ -12,7 +13,6 @@ const CORPS_TAGS = [
 ]
 
 const ENERGIE_LABELS  = ['', 'À plat ⬛', 'Peu 🔋', 'Correct ⚡', 'Bon ⚡⚡', 'Plein gaz 🔋🔥']
-const PERF_LABELS     = ['', 'Difficile...', 'Bof', 'Correct', 'Bonne séance !', 'PB mode 🔥']
 const SOMMEIL_LABELS  = ['', 'Horrible 💀', 'Mauvais 😩', 'Passable 😐', 'Bien 😊', 'Parfait 🌙']
 
 function TagChips({ tags, selected = [], onChange }) {

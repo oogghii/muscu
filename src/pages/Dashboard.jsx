@@ -3,6 +3,7 @@ import { useStore } from '../context/StoreContext'
 import {
   computeStreak, getWeekSessions, getWeekTrainedDays, avgStartTime,
 } from '../lib/stats'
+import { PERF_LABELS } from '../lib/utils'
 
 const DAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 const IDX_TO_DAY = [1, 2, 3, 4, 5, 6, 0]
@@ -89,8 +90,6 @@ function SettingsSheet({ settings, onUpdate, onClose }) {
     </div>
   )
 }
-
-const PERF_LABELS = ['', 'Difficile', 'Bof', 'Correct', 'Bonne séance', 'PB mode 🔥']
 
 export default function Dashboard({ navigate }) {
   const { sessions, activeSession, settings, startSession, updateSettings } = useStore()

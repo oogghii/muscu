@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { formatDuration } from '../lib/utils'
+import { formatDuration, PERF_LABELS } from '../lib/utils'
 
 const MESSAGES = [
   { text: "Bravo Raphaël ! Bonne séance, je suis fier de toi !", icon: "🔥" },
@@ -9,8 +9,6 @@ const MESSAGES = [
   { text: "Une de plus. Ça compte.", icon: "⬆️" },
   { text: "Propre. Raphaël delivered.", icon: "🎯" },
 ]
-
-const PERF_LABELS = ['', 'Difficile...', 'Bof', 'Correct', 'Bonne séance !', 'PB mode 🔥']
 
 export default function EndSessionModal({ activeSession, durationSec, onConfirm, onCancel }) {
   const msg = useMemo(() => MESSAGES[Math.floor(Math.random() * MESSAGES.length)], [])

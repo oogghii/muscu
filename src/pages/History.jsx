@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useStore } from '../context/StoreContext'
-import { formatDuration } from '../lib/utils'
+import { formatDuration, PERF_LABELS } from '../lib/utils'
 import SessionEditSheet from '../components/SessionEditSheet'
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -156,8 +156,6 @@ function Calendar({ year, month, sessionDateSet, emojiByDate, selectedDay, onSel
 }
 
 // ── Session card ──────────────────────────────────────────────────────────────
-
-const PERF_LABELS = ['', 'Difficile', 'Bof', 'Correct', 'Bonne séance', 'PB mode 🔥']
 
 function SessionCard({ session, isExpanded, onToggle, onEdit, onDelete, confirmDelete, onConfirmDelete, onCancelDelete }) {
   const start = new Date(session.startTime)

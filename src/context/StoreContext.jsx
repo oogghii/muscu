@@ -77,4 +77,8 @@ export function StoreProvider({ children }) {
   )
 }
 
-export const useStore = () => useContext(StoreCtx)
+export const useStore = () => {
+  const ctx = useContext(StoreCtx)
+  if (!ctx) throw new Error('useStore must be used within StoreProvider')
+  return ctx
+}
