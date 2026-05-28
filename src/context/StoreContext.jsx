@@ -1,10 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react'
 
-const DEFAULT_EXERCISES = [
-  'Développé couché', 'Squat', 'Soulevé de terre', 'Tractions',
-  'Dips', 'Curl biceps', 'Rowing barre', 'OHP', 'Leg press', 'Pec deck',
-]
-
 function useLocalStorage(key, init) {
   const [val, setVal] = useState(() => {
     try {
@@ -31,14 +26,24 @@ const StoreCtx = createContext(null)
 export function StoreProvider({ children }) {
   const [sessions, setSessions] = useLocalStorage('gs_sessions', [])
   const [activeSession, setActiveSession] = useLocalStorage('gs_active', null)
-  const [settings, setSettings] = useLocalStorage('gs_settings', { bodyWeight: 75, weeklyGoal: 4 })
+  const [settings, setSettings] = useLocalStorage('gs_settings', { weeklyGoal: 4 })
 
   const startSession = useCallback(() => {
     setActiveSession({
       id: Date.now().toString(36),
       startTime: new Date().toISOString(),
-      exercises: [],
+      emoji: null,
+      humeur: [],
+      corps: [],
+      energie: null,
+      sommeil: null,
+      perf: null,
+      note: '',
     })
+  }, [setActiveSession])
+
+  const updateActiveSession = useCallback((updates) => {
+    setActiveSession(prev => prev ? { ...prev, ...updates } : prev)
   }, [setActiveSession])
 
   const endSession = useCallback((endTime) => {
@@ -49,45 +54,9 @@ export function StoreProvider({ children }) {
     return completed
   }, [activeSession, setSessions, setActiveSession])
 
-  const addExercise = useCallback((name) => {
-    setActiveSession(prev => {
-      if (!prev || prev.exercises.find(e => e.name === name)) return prev
-      return { ...prev, exercises: [...prev.exercises, { name, sets: [] }] }
-    })
-  }, [setActiveSession])
-
-  const logSet = useCallback((exerciseName, set) => {
-    setActiveSession(prev => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        exercises: prev.exercises.map(e =>
-          e.name === exerciseName ? { ...e, sets: [...e.sets, set] } : e
-        ),
-      }
-    })
-  }, [setActiveSession])
-
-  const removeSet = useCallback((exerciseName, idx) => {
-    setActiveSession(prev => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        exercises: prev.exercises.map(e =>
-          e.name === exerciseName
-            ? { ...e, sets: e.sets.filter((_, i) => i !== idx) }
-            : e
-        ),
-      }
-    })
-  }, [setActiveSession])
-
-  const removeExercise = useCallback((name) => {
-    setActiveSession(prev => {
-      if (!prev) return prev
-      return { ...prev, exercises: prev.exercises.filter(e => e.name !== name) }
-    })
-  }, [setActiveSession])
+  const updateSession = useCallback((id, updates) => {
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s))
+  }, [setSessions])
 
   const updateSettings = useCallback((updates) => {
     setSettings(prev => ({ ...prev, ...updates }))
@@ -99,10 +68,9 @@ export function StoreProvider({ children }) {
 
   return (
     <StoreCtx.Provider value={{
-      sessions, activeSession, settings, DEFAULT_EXERCISES,
-      startSession, endSession,
-      addExercise, logSet, removeSet, removeExercise,
-      updateSettings, deleteSession,
+      sessions, activeSession, settings,
+      startSession, endSession, updateActiveSession,
+      updateSession, updateSettings, deleteSession,
     }}>
       {children}
     </StoreCtx.Provider>

@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useStore } from '../context/StoreContext'
-import { formatDuration, formatVolume, sessionVolume, totalSets } from '../lib/utils'
+import { formatDuration } from '../lib/utils'
+import SessionEditSheet from '../components/SessionEditSheet'
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -21,7 +22,6 @@ function getCalendarDays(year, month) {
   const lastOfMonth = new Date(year, month + 1, 0)
   const start = getMondayOf(firstOfMonth)
 
-  // End on the Sunday of the week containing the last day of month
   const end = new Date(lastOfMonth)
   const endDay = end.getDay()
   if (endDay !== 0) end.setDate(end.getDate() + (7 - endDay))
@@ -39,10 +39,6 @@ const MONTHS_FR = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
 ]
-const MONTHS_FR_SHORT = [
-  'jan.', 'fév.', 'mars', 'avr.', 'mai', 'juin',
-  'juil.', 'août', 'sep.', 'oct.', 'nov.', 'déc.',
-]
 
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1)
@@ -57,15 +53,13 @@ function formatDayHeader(dateStr) {
 
 // ── Calendar ──────────────────────────────────────────────────────────────────
 
-function Calendar({ year, month, sessionDateSet, selectedDay, onSelectDay, onPrevMonth, onNextMonth }) {
+function Calendar({ year, month, sessionDateSet, emojiByDate, selectedDay, onSelectDay, onPrevMonth, onNextMonth }) {
   const days = getCalendarDays(year, month)
   const todayKey = toDateKey(new Date())
   const now = new Date()
-  const isCurrentOrPast = year < now.getFullYear() || (year === now.getFullYear() && month <= now.getMonth())
 
   return (
     <div className="card" style={{ marginBottom: '0.75rem', padding: '1rem' }}>
-      {/* Month nav */}
       <div className="row--between" style={{ marginBottom: '1rem' }}>
         <button className="btn btn--sm btn--icon" onClick={onPrevMonth}>←</button>
         <span style={{ fontWeight: 800, fontSize: '1.0625rem' }}>
@@ -81,24 +75,18 @@ function Calendar({ year, month, sessionDateSet, selectedDay, onSelectDay, onPre
         </button>
       </div>
 
-      {/* Day headers */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: '4px' }}>
         {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => (
           <div key={i} style={{
-            textAlign: 'center',
-            fontSize: '0.625rem',
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            color: 'var(--gray)',
-            paddingBottom: '6px',
+            textAlign: 'center', fontSize: '0.625rem', fontWeight: 800,
+            textTransform: 'uppercase', letterSpacing: '0.06em',
+            color: 'var(--gray)', paddingBottom: '6px',
           }}>
             {d}
           </div>
         ))}
       </div>
 
-      {/* Day grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px' }}>
         {days.map((day, i) => {
           const key = toDateKey(day)
@@ -106,6 +94,7 @@ function Calendar({ year, month, sessionDateSet, selectedDay, onSelectDay, onPre
           const hasSession = sessionDateSet.has(key)
           const isToday = key === todayKey
           const isSelected = selectedDay === key
+          const emoji = emojiByDate[key]
 
           return (
             <button
@@ -115,22 +104,11 @@ function Calendar({ year, month, sessionDateSet, selectedDay, onSelectDay, onPre
                 onSelectDay(isSelected ? null : key)
               }}
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '3px',
-                padding: '5px 2px',
-                border: isSelected
-                  ? '2.5px solid var(--black)'
-                  : isToday
-                  ? '2.5px solid var(--black)'
-                  : '2px solid transparent',
-                background: isSelected
-                  ? 'var(--yellow)'
-                  : hasSession && inMonth
-                  ? 'var(--lime)'
-                  : 'transparent',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                gap: '1px', padding: '4px 2px',
+                border: isSelected || isToday ? '2.5px solid var(--black)' : '2px solid transparent',
+                background: isSelected ? 'var(--yellow)' : hasSession && inMonth ? 'var(--lime)' : 'transparent',
                 boxShadow: isSelected ? 'var(--shadow-sm)' : 'none',
                 fontWeight: isToday ? 800 : 600,
                 fontSize: '0.8125rem',
@@ -138,37 +116,27 @@ function Calendar({ year, month, sessionDateSet, selectedDay, onSelectDay, onPre
                 opacity: inMonth ? 1 : 0.35,
                 cursor: hasSession && inMonth ? 'pointer' : 'default',
                 fontFamily: 'var(--font)',
-                transition: 'background 0.1s, box-shadow 0.08s, transform 0.08s',
-                minHeight: '36px',
+                transition: 'background 0.1s, box-shadow 0.08s',
+                minHeight: '42px',
               }}
             >
               {day.getDate()}
               {hasSession && inMonth && (
-                <div style={{
-                  width: '5px',
-                  height: '5px',
-                  borderRadius: '50%',
-                  background: isSelected ? 'var(--black)' : 'var(--black)',
-                  opacity: isSelected ? 0.6 : 0.5,
-                }} />
+                emoji
+                  ? <span style={{ fontSize: '0.8rem', lineHeight: 1 }}>{emoji}</span>
+                  : <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--black)', opacity: 0.5 }} />
               )}
             </button>
           )
         })}
       </div>
 
-      {/* Month summary */}
       {(() => {
         const count = days.filter(d => d.getMonth() === month && sessionDateSet.has(toDateKey(d))).length
         return count > 0 ? (
           <div style={{
-            marginTop: '0.75rem',
-            borderTop: '2px solid var(--black)',
-            paddingTop: '0.625rem',
-            fontWeight: 700,
-            fontSize: '0.875rem',
-            display: 'flex',
-            justifyContent: 'space-between',
+            marginTop: '0.75rem', borderTop: '2px solid var(--black)', paddingTop: '0.625rem',
+            fontWeight: 700, fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between',
           }}>
             <span>{count} séance{count !== 1 ? 's' : ''} ce mois</span>
             {selectedDay && (
@@ -189,24 +157,27 @@ function Calendar({ year, month, sessionDateSet, selectedDay, onSelectDay, onPre
 
 // ── Session card ──────────────────────────────────────────────────────────────
 
-function SessionCard({ session, isExpanded, onToggle, onDelete, confirmDelete, onConfirmDelete, onCancelDelete }) {
-  const vol = sessionVolume(session)
-  const sets = totalSets(session)
+const PERF_LABELS = ['', 'Difficile', 'Bof', 'Correct', 'Bonne séance', 'PB mode 🔥']
+
+function SessionCard({ session, isExpanded, onToggle, onEdit, onDelete, confirmDelete, onConfirmDelete, onCancelDelete }) {
   const start = new Date(session.startTime)
   const durationSec = session.endTime
     ? Math.round((new Date(session.endTime) - start) / 1000)
     : null
 
+  const { emoji, perf, energie, sommeil, humeur = [], corps = [], note } = session
+  const hasNote = note && note.trim().length > 0
+  const hasTags = humeur.length > 0 || corps.length > 0
+  const allTags = [...humeur, ...corps]
+
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
       {/* Summary row — always visible */}
-      <div
-        style={{ cursor: 'pointer', userSelect: 'none' }}
-        onClick={onToggle}
-      >
-        <div className="row--between">
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '0.9375rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div style={{ cursor: 'pointer', userSelect: 'none' }} onClick={onToggle}>
+        <div className="row--between" style={{ alignItems: 'flex-start' }}>
+          {/* Left: time + tags preview */}
+          <div style={{ flex: 1, minWidth: 0, marginRight: '0.75rem' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.9375rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               {start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
               {durationSec !== null && (
                 <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--gray)' }}>
@@ -214,63 +185,122 @@ function SessionCard({ session, isExpanded, onToggle, onDelete, confirmDelete, o
                 </span>
               )}
             </div>
-            <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--gray)', marginTop: '3px', lineHeight: 1.4 }}>
-              {session.exercises.slice(0, 3).map(e => e.name).join(' · ')}
-              {session.exercises.length > 3 && ` · +${session.exercises.length - 3}`}
-            </div>
+            {!isExpanded && hasTags && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: '0.375rem' }}>
+                {allTags.slice(0, 3).map(tag => (
+                  <span key={tag} style={{
+                    fontSize: '0.6875rem', fontWeight: 700, padding: '2px 6px',
+                    border: '1.5px solid var(--black)', background: 'var(--black)', color: 'var(--bg)',
+                  }}>
+                    {tag}
+                  </span>
+                ))}
+                {allTags.length > 3 && (
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--gray)', alignSelf: 'center' }}>
+                    +{allTags.length - 3}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
-          <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '0.75rem' }}>
-            <div style={{ fontWeight: 800, fontSize: '1.0625rem' }}>{vol > 0 ? formatVolume(vol) : '—'}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--gray)', fontWeight: 600 }}>
-              {sets} série{sets !== 1 ? 's' : ''}
+
+          {/* Right: emoji + ratings */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexShrink: 0 }}>
+            {emoji && (
+              <span style={{ fontSize: '1.875rem', lineHeight: 1 }}>{emoji}</span>
+            )}
+            <div style={{ textAlign: 'right' }}>
+              {perf != null && (
+                <div style={{ fontWeight: 800, fontSize: '1.125rem', lineHeight: 1 }}>
+                  {perf}<span style={{ fontSize: '0.75rem', color: 'var(--gray)', fontWeight: 600 }}>/5</span>
+                </div>
+              )}
+              {energie != null && (
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--gray)', marginTop: '2px' }}>
+                  ⚡{energie}/5
+                </div>
+              )}
+              {sommeil != null && (
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--gray)', marginTop: '1px' }}>
+                  🌙{sommeil}/5
+                </div>
+              )}
             </div>
           </div>
         </div>
-        <div style={{
-          marginTop: '0.375rem',
-          fontSize: '0.75rem',
-          color: 'var(--gray)',
-          fontWeight: 700,
-          textAlign: 'right',
-        }}>
+
+        <div style={{ marginTop: '0.375rem', fontSize: '0.75rem', color: 'var(--gray)', fontWeight: 700, textAlign: 'right' }}>
           {isExpanded ? '▲ Réduire' : '▼ Détails'}
         </div>
       </div>
 
-      {/* Expanded detail */}
+      {/* Expanded */}
       {isExpanded && (
         <div style={{ marginTop: '0.75rem' }}>
           <div className="divider" style={{ margin: '0 0 0.75rem' }} />
-          <div className="stack" style={{ gap: '0.75rem' }}>
-            {session.exercises.map(ex => {
-              const exVol = ex.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0)
-              return (
-                <div key={ex.name}>
-                  <div className="row--between" style={{ marginBottom: '0.375rem' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{ex.name}</span>
-                    {exVol > 0 && (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--gray)', fontWeight: 600 }}>
-                        {Math.round(exVol).toLocaleString('fr-FR')} kg
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                    {ex.sets.map((set, i) => (
-                      <span key={i} className="set-chip" style={{ cursor: 'default', fontSize: '0.8125rem' }}>
-                        {set.weight}×{set.reps}
-                      </span>
-                    ))}
-                    {ex.sets.length === 0 && (
-                      <span style={{ fontSize: '0.8125rem', color: 'var(--gray)' }}>Aucune série</span>
-                    )}
-                  </div>
+
+          {/* All tags */}
+          {hasTags && (
+            <div style={{ marginBottom: '0.75rem' }}>
+              {humeur.length > 0 && (
+                <div style={{ marginBottom: '0.375rem' }}>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--gray)', marginRight: '0.5rem' }}>Humeur</span>
+                  {humeur.map(tag => (
+                    <span key={tag} style={{ display: 'inline-block', fontSize: '0.8125rem', fontWeight: 700, padding: '2px 8px', border: '2px solid var(--black)', background: 'var(--black)', color: 'var(--bg)', marginRight: '0.25rem', marginBottom: '0.25rem' }}>
+                      {tag}
+                    </span>
+                  ))}
                 </div>
-              )
-            })}
-          </div>
+              )}
+              {corps.length > 0 && (
+                <div>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--gray)', marginRight: '0.5rem' }}>Corps</span>
+                  {corps.map(tag => (
+                    <span key={tag} style={{ display: 'inline-block', fontSize: '0.8125rem', fontWeight: 700, padding: '2px 8px', border: '2px solid var(--black)', background: 'transparent', marginRight: '0.25rem', marginBottom: '0.25rem' }}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-          <div className="divider" style={{ margin: '0.75rem 0' }} />
+          {/* Ratings detail */}
+          {(perf != null || energie != null || sommeil != null) && (
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+              {perf != null && (
+                <div style={{ fontSize: '0.8125rem', fontWeight: 700 }}>
+                  Perf <strong>{perf}/5</strong>
+                  <span style={{ fontWeight: 600, color: 'var(--gray)' }}> {PERF_LABELS[perf]}</span>
+                </div>
+              )}
+              {energie != null && (
+                <div style={{ fontSize: '0.8125rem', fontWeight: 700 }}>
+                  · Énergie <strong>{energie}/5</strong>
+                </div>
+              )}
+              {sommeil != null && (
+                <div style={{ fontSize: '0.8125rem', fontWeight: 700 }}>
+                  · Sommeil <strong>{sommeil}/5</strong>
+                </div>
+              )}
+            </div>
+          )}
 
+          {/* Note */}
+          {hasNote && (
+            <div style={{
+              fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.5,
+              marginBottom: '0.75rem', color: 'var(--black)',
+              borderLeft: '3px solid var(--black)', paddingLeft: '0.625rem',
+            }}>
+              {note}
+            </div>
+          )}
+
+          <div className="divider" style={{ margin: '0 0 0.625rem' }} />
+
+          {/* Actions */}
           {confirmDelete ? (
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, fontSize: '0.875rem', flex: 1 }}>Supprimer cette séance ?</span>
@@ -278,9 +308,14 @@ function SessionCard({ session, isExpanded, onToggle, onDelete, confirmDelete, o
               <button className="btn btn--sm" onClick={onCancelDelete}>Non</button>
             </div>
           ) : (
-            <button className="btn btn--sm" style={{ color: 'var(--red)', borderColor: 'var(--red)' }} onClick={onDelete}>
-              Supprimer
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn--sm btn--primary" style={{ flex: 1 }} onClick={onEdit}>
+                ✏️ Modifier
+              </button>
+              <button className="btn btn--sm" style={{ color: 'var(--red)', borderColor: 'var(--red)' }} onClick={onDelete}>
+                Supprimer
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -291,19 +326,25 @@ function SessionCard({ session, isExpanded, onToggle, onDelete, confirmDelete, o
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function History() {
-  const { sessions, deleteSession } = useStore()
+  const { sessions, deleteSession, updateSession } = useStore()
   const now = new Date()
   const [calYear, setCalYear] = useState(now.getFullYear())
   const [calMonth, setCalMonth] = useState(now.getMonth())
   const [selectedDay, setSelectedDay] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [editingSession, setEditingSession] = useState(null)
   const listRef = useRef(null)
 
-  // Build set of all session dates
   const sessionDateSet = new Set(sessions.map(s => s.startTime.slice(0, 10)))
 
-  // Filter sessions: by selected day, or by calendar month
+  // Build emoji map: dateKey → last emoji for that day
+  const emojiByDate = {}
+  sessions.forEach(s => {
+    const dk = s.startTime.slice(0, 10)
+    if (s.emoji) emojiByDate[dk] = s.emoji
+  })
+
   const filtered = selectedDay
     ? sessions.filter(s => s.startTime.slice(0, 10) === selectedDay)
     : sessions.filter(s => {
@@ -311,7 +352,6 @@ export default function History() {
         return d.getFullYear() === calYear && d.getMonth() === calMonth
       })
 
-  // Sort newest first, group by date
   const sortedDesc = filtered.slice().sort((a, b) =>
     new Date(b.startTime) - new Date(a.startTime)
   )
@@ -339,7 +379,6 @@ export default function History() {
   const handleSelectDay = (day) => {
     setSelectedDay(day)
     setExpandedId(null)
-    // Scroll list into view on mobile
     setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
   }
 
@@ -347,6 +386,10 @@ export default function History() {
     deleteSession(id)
     setExpandedId(null)
     setConfirmDeleteId(null)
+  }
+
+  const handleSaveEdit = (id, values) => {
+    updateSession(id, values)
   }
 
   return (
@@ -359,13 +402,13 @@ export default function History() {
         year={calYear}
         month={calMonth}
         sessionDateSet={sessionDateSet}
+        emojiByDate={emojiByDate}
         selectedDay={selectedDay}
         onSelectDay={handleSelectDay}
         onPrevMonth={prevMonth}
         onNextMonth={nextMonth}
       />
 
-      {/* Session list */}
       <div ref={listRef}>
         {sessions.length === 0 ? (
           <div className="empty-state">
@@ -391,21 +434,14 @@ export default function History() {
           <div className="stack">
             {groupDates.map(dk => (
               <div key={dk}>
-                {/* Date header */}
                 <div style={{
-                  fontSize: '0.8125rem',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.07em',
-                  color: 'var(--gray)',
-                  marginBottom: '0.5rem',
-                  marginTop: '0.25rem',
-                  paddingLeft: '2px',
+                  fontSize: '0.8125rem', fontWeight: 800, textTransform: 'uppercase',
+                  letterSpacing: '0.07em', color: 'var(--gray)',
+                  marginBottom: '0.5rem', marginTop: '0.25rem', paddingLeft: '2px',
                 }}>
                   {formatDayHeader(dk)}
                 </div>
 
-                {/* Sessions for this date */}
                 <div className="stack" style={{ gap: '0.5rem' }}>
                   {groups[dk].map(session => (
                     <SessionCard
@@ -417,6 +453,7 @@ export default function History() {
                         setExpandedId(id => id === session.id ? null : session.id)
                         setConfirmDeleteId(null)
                       }}
+                      onEdit={() => setEditingSession(session)}
                       onDelete={() => setConfirmDeleteId(session.id)}
                       onConfirmDelete={() => handleDelete(session.id)}
                       onCancelDelete={() => setConfirmDeleteId(null)}
@@ -428,6 +465,14 @@ export default function History() {
           </div>
         )}
       </div>
+
+      {editingSession && (
+        <SessionEditSheet
+          session={editingSession}
+          onSave={values => handleSaveEdit(editingSession.id, values)}
+          onClose={() => setEditingSession(null)}
+        />
+      )}
     </div>
   )
 }

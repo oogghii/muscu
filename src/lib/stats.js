@@ -2,7 +2,7 @@
 
 function getMondayOf(date) {
   const d = new Date(date)
-  const day = d.getDay() // 0 = Sunday
+  const day = d.getDay()
   const diff = d.getDate() - day + (day === 0 ? -6 : 1)
   d.setDate(diff)
   d.setHours(0, 0, 0, 0)
@@ -30,12 +30,9 @@ export function computeStreak(sessions, weeklyGoal = 4) {
   const byWeek = groupByWeek(sessions)
   const currentKey = weekKey(new Date())
 
-  // ── current streak ──
   let current = 0
-  // First: if current week is already at goal, count it
   if ((byWeek[currentKey] || []).length >= weeklyGoal) current = 1
 
-  // Then walk backwards from previous weeks
   let d = getMondayOf(new Date())
   d.setDate(d.getDate() - 7)
   while (true) {
@@ -48,7 +45,6 @@ export function computeStreak(sessions, weeklyGoal = 4) {
     }
   }
 
-  // ── all-time best ──
   const keys = Object.keys(byWeek).sort()
   if (!keys.length) return { current, best: current }
 
@@ -80,7 +76,6 @@ export function getWeekSessions(sessions) {
   return groupByWeek(sessions)[k]?.length ?? 0
 }
 
-/** Returns array of JS day numbers (0=Sun…6=Sat) for sessions this week */
 export function getWeekTrainedDays(sessions) {
   const start = getMondayOf(new Date())
   const end = new Date(start)
@@ -91,16 +86,6 @@ export function getWeekTrainedDays(sessions) {
       return d >= start && d < end
     })
     .map(s => new Date(s.startTime).getDay())
-}
-
-// ── Volume ────────────────────────────────────────────────────────────────────
-
-export function totalVolume(sessions) {
-  return sessions.reduce((sum, s) =>
-    sum + s.exercises.reduce((es, ex) =>
-      es + ex.sets.reduce((ss, set) => ss + (set.weight || 0) * (set.reps || 0), 0)
-    , 0)
-  , 0)
 }
 
 // ── Average start time ────────────────────────────────────────────────────────
@@ -126,24 +111,6 @@ export function mostFrequentDay(sessions) {
   return DAYS_FR[counts.indexOf(Math.max(...counts))]
 }
 
-// ── Exercise progression ──────────────────────────────────────────────────────
-
-export function exerciseProgress(sessions, name) {
-  return sessions
-    .filter(s => s.exercises.some(e => e.name === name))
-    .slice(-8)
-    .map(s => {
-      const ex = s.exercises.find(e => e.name === name)
-      const weights = ex.sets.map(set => set.weight || 0)
-      const maxW = weights.length ? Math.max(...weights) : 0
-      const d = new Date(s.startTime)
-      return {
-        date: d.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }),
-        maxWeight: maxW,
-      }
-    })
-}
-
 // ── Consistency rate ──────────────────────────────────────────────────────────
 
 export function consistencyRate(sessions, weeklyGoal = 4) {
@@ -161,49 +128,180 @@ export function weeklySummary(sessions) {
   const start = getMondayOf(new Date())
   const end = new Date(start)
   end.setDate(end.getDate() + 7)
-
   const ws = sessions.filter(s => {
     const d = new Date(s.startTime)
     return d >= start && d < end
   })
-
-  const vol = totalVolume(ws)
-  let bestSet = null
-
-  ws.forEach(s =>
-    s.exercises.forEach(ex =>
-      ex.sets.forEach(set => {
-        const score = (set.weight || 0) * (set.reps || 0)
-        if (!bestSet || score > bestSet.weight * bestSet.reps) {
-          bestSet = { ...set, exercise: ex.name }
-        }
-      })
-    )
-  )
-
-  return { count: ws.length, volume: vol, bestSet }
+  const rated = ws.filter(s => s.perf != null)
+  const avgPerf = rated.length
+    ? Math.round((rated.reduce((sum, s) => sum + s.perf, 0) / rated.length) * 10) / 10
+    : null
+  return { count: ws.length, avgPerf }
 }
 
-// ── All-time best set ─────────────────────────────────────────────────────────
+// ── Average of a numeric field ────────────────────────────────────────────────
 
-export function allTimeBestSet(sessions) {
-  let best = null
-  sessions.forEach(s =>
-    s.exercises.forEach(ex =>
-      ex.sets.forEach(set => {
-        if (!best || set.weight > best.weight) {
-          best = { ...set, exercise: ex.name }
-        }
-      })
-    )
-  )
-  return best
+export function avgField(sessions, field) {
+  const valued = sessions.filter(s => s[field] != null)
+  if (!valued.length) return null
+  return Math.round((valued.reduce((sum, s) => sum + s[field], 0) / valued.length) * 10) / 10
 }
 
-// ── Unique exercises in sessions ──────────────────────────────────────────────
+// ── Emoji distribution ────────────────────────────────────────────────────────
 
-export function usedExercises(sessions) {
-  const names = new Set()
-  sessions.forEach(s => s.exercises.forEach(e => names.add(e.name)))
-  return Array.from(names)
+export function emojiDistribution(sessions) {
+  const dist = {}
+  sessions.forEach(s => {
+    if (s.emoji) dist[s.emoji] = (dist[s.emoji] || 0) + 1
+  })
+  return dist
+}
+
+// ── Humeur tags distribution ──────────────────────────────────────────────────
+
+export function humeurDistribution(sessions) {
+  const dist = {}
+  sessions.forEach(s => {
+    ;(s.humeur || []).forEach(tag => {
+      dist[tag] = (dist[tag] || 0) + 1
+    })
+  })
+  return dist
+}
+
+// ── Corps tags distribution ───────────────────────────────────────────────────
+
+export function corpsDistribution(sessions) {
+  const dist = {}
+  sessions.forEach(s => {
+    ;(s.corps || []).forEach(tag => {
+      dist[tag] = (dist[tag] || 0) + 1
+    })
+  })
+  return dist
+}
+
+// ── Perf trend (last N sessions with a perf rating) ───────────────────────────
+
+export function perfTrend(sessions, n = 10) {
+  return sessions
+    .filter(s => s.perf != null)
+    .slice(-n)
+    .map(s => ({
+      date: new Date(s.startTime).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }),
+      perf: s.perf,
+      emoji: s.emoji || null,
+    }))
+}
+
+// ── Year heatmap data ─────────────────────────────────────────────────────────
+
+export function yearHeatmap(sessions, year) {
+  const map = {}
+  sessions.forEach(s => {
+    if (new Date(s.startTime).getFullYear() !== year) return
+    const dk = s.startTime.slice(0, 10)
+    const existing = map[dk]
+    // Keep highest perf for that day
+    if (!existing || (s.perf != null && (existing.perf == null || s.perf > existing.perf))) {
+      map[dk] = { perf: s.perf ?? null, emoji: s.emoji ?? null }
+    }
+  })
+  return map
+}
+
+// ── Perf trend direction (recent N vs previous N) ─────────────────────────────
+
+export function perfTrendDir(sessions) {
+  const rated = sessions.filter(s => s.perf != null)
+  if (rated.length < 6) return null
+
+  const n = Math.min(5, Math.floor(rated.length / 2))
+  const recent   = rated.slice(-n)
+  const previous = rated.slice(-(n * 2), -n)
+  if (!previous.length) return null
+
+  const recentAvg   = recent.reduce((s, x) => s + x.perf, 0) / recent.length
+  const previousAvg = previous.reduce((s, x) => s + x.perf, 0) / previous.length
+  const diff = Math.round((recentAvg - previousAvg) * 10) / 10
+
+  return {
+    recentAvg:   Math.round(recentAvg   * 10) / 10,
+    previousAvg: Math.round(previousAvg * 10) / 10,
+    diff,
+    n,
+  }
+}
+
+// ── Day-of-week performance ───────────────────────────────────────────────────
+
+const DOW_FR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+
+export function dayOfWeekPerf(sessions) {
+  const buckets = Array(7).fill(null).map(() => ({ count: 0, perfSum: 0, perfCount: 0 }))
+  sessions.forEach(s => {
+    const day = new Date(s.startTime).getDay()
+    buckets[day].count++
+    if (s.perf != null) {
+      buckets[day].perfSum  += s.perf
+      buckets[day].perfCount++
+    }
+  })
+  return DOW_FR.map((name, i) => ({
+    name,
+    count:   buckets[i].count,
+    avgPerf: buckets[i].perfCount
+      ? Math.round(buckets[i].perfSum / buckets[i].perfCount * 10) / 10
+      : null,
+  })).filter(d => d.count > 0)
+}
+
+// ── Field correlation (e.g. sommeil ≥ 4 → better perf?) ──────────────────────
+
+export function fieldCorrelation(sessions, trigger, target) {
+  const high = sessions.filter(s => s[trigger] != null && s[trigger] >= 4 && s[target] != null)
+  const low  = sessions.filter(s => s[trigger] != null && s[trigger] <  4 && s[target] != null)
+  if (high.length < 2 && low.length < 2) return null
+  const avgHigh = high.length ? Math.round(high.reduce((a, s) => a + s[target], 0) / high.length * 10) / 10 : null
+  const avgLow  = low.length  ? Math.round(low .reduce((a, s) => a + s[target], 0) / low.length  * 10) / 10 : null
+  return { avgHigh, avgLow, highCount: high.length, lowCount: low.length }
+}
+
+// ── Humeur → avg perf correlation ─────────────────────────────────────────────
+
+export function humeurPerfCorr(sessions) {
+  const data = {}
+  sessions.forEach(s => {
+    if (s.perf == null) return
+    ;(s.humeur || []).forEach(tag => {
+      if (!data[tag]) data[tag] = { sum: 0, count: 0 }
+      data[tag].sum   += s.perf
+      data[tag].count++
+    })
+  })
+  return Object.entries(data)
+    .map(([tag, { sum, count }]) => ({
+      tag,
+      avg: Math.round(sum / count * 10) / 10,
+      count,
+    }))
+    .filter(x => x.count >= 2)
+    .sort((a, b) => b.avg - a.avg)
+}
+
+// ── Best month ────────────────────────────────────────────────────────────────
+
+export function bestMonth(sessions) {
+  if (!sessions.length) return null
+  const counts = {}
+  sessions.forEach(s => {
+    const key = s.startTime.slice(0, 7)
+    counts[key] = (counts[key] || 0) + 1
+  })
+  const [key, count] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+  const d = new Date(key + '-01')
+  return {
+    count,
+    label: d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
+  }
 }
